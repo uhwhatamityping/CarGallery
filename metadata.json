@@ -1,0 +1,5 @@
+{
+  "name": "Car Gallery",
+  "description": "A modern car picture gallery with AI image moderation.",
+  "requestFramePermissions": []
+}

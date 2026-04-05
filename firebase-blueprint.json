@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "Car": {
+      "title": "Car",
+      "description": "A car in the gallery",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the car"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Sports", "SUV", "Classic"],
+          "description": "The category of the car"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Base64 encoded image data"
+        },
+        "liked": {
+          "type": "boolean",
+          "description": "Whether the car is liked"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "The UID of the user who uploaded the car"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the car was uploaded"
+        }
+      },
+      "required": ["name", "category", "imageUrl", "liked", "ownerId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/cars/{carId}": {
+      "schema": {
+        "$ref": "#/entities/Car"
+      },
+      "description": "Collection of uploaded cars"
+    }
+  }
+}
