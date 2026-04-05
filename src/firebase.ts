@@ -11,8 +11,9 @@ export const provider = new GoogleAuthProvider();
 export const loginWithGoogle = async () => {
   try {
     await signInWithPopup(auth, provider);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error signing in with Google", error);
+    alert(`Login failed: ${error.message}\n\nIf you are on Netlify, make sure to add your Netlify domain to Firebase Auth Authorized Domains!`);
   }
 };
 
