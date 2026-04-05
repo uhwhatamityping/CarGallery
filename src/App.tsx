@@ -2,9 +2,60 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Menu, Heart, Plus, X, Upload, Loader2, User, Trash2, LogOut } from 'lucide-react';
 import * as tf from '@tensorflow/tfjs';
 import * as nsfwjs from 'nsfwjs';
-import { collection, onSnapshot, addDoc, deleteDoc, updateDoc, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, updateDoc, doc, serverTimestamp, query, orderBy, getDocFromServer } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth, loginWithGoogle, logout } from './firebase';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 type Category = 'Sports' | 'SUV' | 'Classic';
 
@@ -35,6 +86,20 @@ export default function App() {
     return () => unsubscribeAuth();
   }, []);
 
+  // Connection test
+  useEffect(() => {
+    async function testConnection() {
+      try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+      } catch (error) {
+        if(error instanceof Error && error.message.includes('the client is offline')) {
+          console.error("Please check your Firebase configuration. ");
+        }
+      }
+    }
+    testConnection();
+  }, []);
+
   // Load saved cars from Firebase
   useEffect(() => {
     const q = query(collection(db, 'cars'), orderBy('createdAt', 'desc'));
@@ -60,8 +125,8 @@ export default function App() {
       await updateDoc(doc(db, 'cars', car.id), {
         liked: !car.liked
       });
-    } catch (err) {
-      console.error('Failed to update like:', err);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `cars/${car.id}`);
     }
   };
 
@@ -69,8 +134,8 @@ export default function App() {
     if (!user || user.uid !== car.ownerId) return;
     try {
       await deleteDoc(doc(db, 'cars', car.id));
-    } catch (err) {
-      console.error('Failed to delete car:', err);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `cars/${car.id}`);
     }
   };
 
@@ -255,11 +320,17 @@ function UploadModal({ onClose, user }: { onClose: () => void, user: any }) {
       img.crossOrigin = 'anonymous';
       await new Promise((resolve, reject) => {
         img.onload = resolve;
-        img.onerror = reject;
+        img.onerror = () => reject(new Error('Failed to load image for analysis.'));
       });
 
       // 2. Load and run NSFWJS for inappropriate content
-      const nsfwModel = await nsfwjs.load();
+      let nsfwModel;
+      try {
+        nsfwModel = await nsfwjs.load();
+      } catch (e) {
+        throw new Error('Failed to load safety analysis model.');
+      }
+      
       const nsfwPredictions = await nsfwModel.classify(img);
       
       // If Porn, Hentai, or Sexy is detected with high probability, block it
@@ -274,23 +345,40 @@ function UploadModal({ onClose, user }: { onClose: () => void, user: any }) {
       }
 
       // Compress image to ensure it's under 1MB for Firestore
-      const base64Data = await compressImage(imageFile);
+      let base64Data;
+      try {
+        base64Data = await compressImage(imageFile);
+      } catch (e) {
+        throw new Error('Failed to compress image.');
+      }
 
       // 3. Add to gallery
-      await addDoc(collection(db, 'cars'), {
-        name,
-        category,
-        imageUrl: base64Data,
-        liked: false,
-        ownerId: user.uid,
-        createdAt: serverTimestamp()
-      });
+      try {
+        await addDoc(collection(db, 'cars'), {
+          name,
+          category,
+          imageUrl: base64Data,
+          liked: false,
+          ownerId: user.uid,
+          createdAt: serverTimestamp()
+        });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.CREATE, 'cars');
+      }
 
       onClose();
 
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'An error occurred during upload.');
+      let message = err.message || 'An error occurred during upload.';
+      // If it's our JSON error info, try to parse it for a better display
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed.error) message = `Firestore Error: ${parsed.error}`;
+      } catch (e) {
+        // Not JSON, keep original message
+      }
+      setError(message);
     } finally {
       setIsUploading(false);
     }
