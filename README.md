@@ -1,30 +1,20 @@
-# 🏎️ Car Gallery
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-A modern, responsive web application for car enthusiasts to upload, view, and curate their favorite vehicles. Built with React and Firebase.
+# Run and deploy your AI Studio app
 
-## ✨ Features
+This contains everything you need to run your app locally.
 
-* **Cloud Storage & Database:** All cars and images are securely stored in Google Cloud Firestore.
-* **Google Authentication:** Users can log in with their Google accounts to manage their uploads.
-* **Smart Image Compression:** Automatically resizes and compresses images before upload to optimize storage and loading speeds.
-* **AI Content Moderation:** Uses TensorFlow.js (`nsfwjs`) directly in the browser to automatically block inappropriate image uploads.
-* **Real-time Sync:** Likes and new uploads sync across all devices instantly.
-* **Categorization:** Filter cars by categories like Sports, SUV, and Classic.
+View your app in AI Studio: https://ai.studio/apps/f2d95180-2af9-4a8f-aff1-608817081c80
 
-## 🛠️ Tech Stack
+## Run Locally
 
-* **Frontend:** React 19, TypeScript, Vite
-* **Styling:** Tailwind CSS, Lucide React (Icons)
-* **Backend/Database:** Firebase (Firestore & Authentication)
-* **Machine Learning:** TensorFlow.js (`@tensorflow/tfjs`), NSFWJS
-* **Deployment:** Netlify
+**Prerequisites:**  Node.js
 
-## 🚀 Getting Started (Local Development)
 
-### Prerequisites
-Make sure you have [Node.js](https://nodejs.org/) installed on your machine.
-
-### 1. Clone the repository
-```bash
-git clone https://github.com/uhwhatamityping/CarGallery.git
-cd CarGallery
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
