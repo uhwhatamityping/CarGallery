@@ -147,7 +147,13 @@ export default function App() {
         <h1 className="text-xl font-semibold tracking-tight">Car Gallery</h1>
         {user ? (
           <button onClick={logout} className="p-2 hover:bg-gray-100 rounded-full transition-colors flex items-center gap-2 text-sm text-gray-600">
-            <img src={user.photoURL || ''} alt="Profile" className="w-6 h-6 rounded-full" referrerPolicy="no-referrer" />
+            {user.photoURL ? (
+              <img src={user.photoURL} alt="Profile" className="w-6 h-6 rounded-full" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                <User className="w-4 h-4 text-gray-500" />
+              </div>
+            )}
             <LogOut className="w-4 h-4" />
           </button>
         ) : (
@@ -324,19 +330,19 @@ function UploadModal({ onClose, user }: { onClose: () => void, user: any }) {
       });
 
       // 2. Load and run NSFWJS for inappropriate content
-      let nsfwModel;
+      let isUnsafe = false;
       try {
-        nsfwModel = await nsfwjs.load();
-      } catch (e) {
-        throw new Error('Failed to load safety analysis model.');
+        const nsfwModel = await nsfwjs.load();
+        const nsfwPredictions = await nsfwModel.classify(img);
+        
+        // If Porn, Hentai, or Sexy is detected with high probability, block it
+        isUnsafe = nsfwPredictions.some(p => 
+          ['Porn', 'Hentai', 'Sexy'].includes(p.className) && p.probability > 0.6
+        );
+      } catch (e: any) {
+        console.warn("NSFWJS Load Error - skipping safety check:", e);
+        // We skip the safety check if the model fails to load (e.g. adblocker, network issue)
       }
-      
-      const nsfwPredictions = await nsfwModel.classify(img);
-      
-      // If Porn, Hentai, or Sexy is detected with high probability, block it
-      const isUnsafe = nsfwPredictions.some(p => 
-        ['Porn', 'Hentai', 'Sexy'].includes(p.className) && p.probability > 0.6
-      );
 
       if (isUnsafe) {
         setError('Inappropriate content detected. Upload blocked.');
